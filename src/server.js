@@ -1,9 +1,15 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-// Import the models we just created
+// Authentication Middleware (The Bouncer)
+const auth = require('./middleware/auth');
+
+// Import the models
+const User = require('./models/User');
 const Restaurant = require('./models/Restaurant');
 const Reservation = require('./models/Reservation');
 
@@ -13,7 +19,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. Connect to MongoDB (We will put the link in the .env file next)
+// 1. Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ Tablemates Database Connected!"))
   .catch(err => console.error("❌ MongoDB Connection Error:", err));
@@ -44,15 +50,55 @@ app.post('/api/reservations', async (req, res) => {
   }
 });
 
-app.get('/api/admin/reservations', async (req, res) => {
+// 5. GET all reservations (ADMIN ONLY - Protected by 'auth')
+// Note the 'auth' added after the URL string
+app.get('/api/admin/reservations', auth, async (req, res) => {
   try {
-    // .populate('restaurantId') is a Mongoose "magic" trick.
-    // Instead of just seeing an ID number, it replaces it with the full Restaurant object.
+    // .populate('restaurantId') replaces the ID with the full Restaurant object
     const bookings = await Reservation.find().populate('restaurantId');
-    
-    res.status(200).json(bookings);
+    res.json(bookings);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching dashboard data", error: err.message });
+    res.status(500).json({ message: "Error fetching dashboard data" });
+  }
+});
+
+// --- AUTHENTICATION ROUTES ---
+
+// SIGNUP ROUTE
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({ email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: "User created successfully!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// LOGIN ROUTE
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.json({ token, user: { id: user._id, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
