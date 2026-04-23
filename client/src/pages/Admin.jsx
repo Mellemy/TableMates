@@ -23,9 +23,9 @@ function Admin() {
 
   const navigate = useNavigate();
 
-  const adminData = JSON.parse(localStorage.getItem("adminData") || "{}");
-  const restaurantId = adminData.restaurantId;
-  const restaurantName = adminData.restaurantName;
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const restaurantId = user.restaurantId;
+  const restaurantName = user.restaurantName;
 
   const fetchReservations = async () => {
     try {
@@ -38,18 +38,27 @@ function Admin() {
   };
 
   useEffect(() => {
-    fetchReservations();
+    const loadReservations = async () => {
+      await fetchReservations();
+    };
+
+    loadReservations();
+    const intervalId = window.setInterval(loadReservations, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const myReservations = useMemo(() => {
     return reservations.filter(
-      (reservation) => Number(reservation.restaurantId) === Number(restaurantId)
+      (reservation) => String(reservation.restaurantId) === String(restaurantId)
     );
   }, [reservations, restaurantId]);
 
   const handleLogout = () => {
-    localStorage.removeItem("isAdminLoggedIn");
-    localStorage.removeItem("adminData");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/admin-login");
   };
 
@@ -94,8 +103,6 @@ function Admin() {
     try {
       const updated = await updateReservation(editingId, {
         ...editForm,
-        restaurantId: Number(editForm.restaurantId),
-        tableId: Number(editForm.tableId),
         guests: Number(editForm.guests),
       });
 

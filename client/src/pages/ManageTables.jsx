@@ -1,18 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  createTable,
+  deleteTable,
+  getRestaurantTables,
+  updateTable,
+} from "../services/tableService";
 
 function ManageTables() {
-  const adminData = JSON.parse(localStorage.getItem("adminData") || "{}");
-  const restaurantId = adminData.restaurantId;
-  const restaurantName = adminData.restaurantName;
-
-  const [tables, setTables] = useState([
-    { id: 1, restaurantId: 1, tableNumber: "T1", seats: 2, status: "Available" },
-    { id: 2, restaurantId: 1, tableNumber: "T2", seats: 4, status: "Reserved" },
-    { id: 3, restaurantId: 2, tableNumber: "T1", seats: 2, status: "Available" },
-    { id: 4, restaurantId: 2, tableNumber: "T2", seats: 6, status: "Maintenance" },
-    { id: 5, restaurantId: 3, tableNumber: "T1", seats: 4, status: "Available" },
-    { id: 6, restaurantId: 4, tableNumber: "T1", seats: 8, status: "Reserved" },
-  ]);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const restaurantId = user.restaurantId;
+  const restaurantName = user.restaurantName;
+  const [tables, setTables] = useState([]);
 
   const [formData, setFormData] = useState({
     tableNumber: "",
@@ -24,8 +22,29 @@ function ManageTables() {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
 
+  useEffect(() => {
+    const fetchTables = async () => {
+      if (!restaurantId) return;
+
+      try {
+        const data = await getRestaurantTables(restaurantId);
+        setTables(data);
+      } catch (error) {
+        setIsError(true);
+        setMessage(error.message || "Failed to load tables.");
+      }
+    };
+
+    fetchTables();
+    const intervalId = window.setInterval(fetchTables, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [restaurantId]);
+
   const myTables = useMemo(() => {
-    return tables.filter((table) => Number(table.restaurantId) === Number(restaurantId));
+    return tables.filter((table) => String(table.restaurantId) === String(restaurantId));
   }, [tables, restaurantId]);
 
   const handleChange = (e) => {
@@ -44,7 +63,7 @@ function ManageTables() {
     setEditingId(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
 
@@ -60,37 +79,49 @@ function ManageTables() {
       return;
     }
 
-    if (editingId) {
-      setTables((prev) =>
-        prev.map((table) =>
-          table.id === editingId
-            ? {
-                ...table,
-                tableNumber: formData.tableNumber,
-                seats: Number(formData.seats),
-                status: formData.status,
-              }
-            : table
-        )
-      );
+    const normalizedTableNumber = formData.tableNumber.trim().toUpperCase();
+    const duplicateTable = tables.find(
+      (table) =>
+        table.id !== editingId &&
+        String(table.restaurantId) === String(restaurantId) &&
+        table.tableNumber.trim().toUpperCase() === normalizedTableNumber
+    );
 
-      setIsError(false);
-      setMessage("Table updated successfully.");
-    } else {
-      const newTable = {
-        id: Date.now(),
-        restaurantId: Number(restaurantId),
-        tableNumber: formData.tableNumber,
-        seats: Number(formData.seats),
-        status: formData.status,
-      };
-
-      setTables((prev) => [...prev, newTable]);
-      setIsError(false);
-      setMessage("Table added successfully.");
+    if (duplicateTable) {
+      setIsError(true);
+      setMessage("This table number already exists for your restaurant.");
+      return;
     }
 
-    resetForm();
+    try {
+      if (editingId) {
+        const updatedTable = await updateTable(editingId, {
+          tableNumber: normalizedTableNumber,
+          seats: Number(formData.seats),
+          status: formData.status,
+        });
+
+        setTables((prev) =>
+          prev.map((table) => (table.id === editingId ? updatedTable : table))
+        );
+        setMessage("Table updated successfully.");
+      } else {
+        const newTable = await createTable({
+          tableNumber: normalizedTableNumber,
+          seats: Number(formData.seats),
+          status: formData.status,
+        });
+
+        setTables((prev) => [...prev, newTable]);
+        setMessage("Table added successfully.");
+      }
+
+      setIsError(false);
+      resetForm();
+    } catch (error) {
+      setIsError(true);
+      setMessage(error.message || "Failed to save table.");
+    }
   };
 
   const handleEdit = (table) => {
@@ -103,13 +134,19 @@ function ManageTables() {
     setMessage("");
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const confirmed = window.confirm("Are you sure you want to delete this table?");
     if (!confirmed) return;
 
-    setTables((prev) => prev.filter((table) => table.id !== id));
-    setMessage("Table deleted successfully.");
-    setIsError(false);
+    try {
+      await deleteTable(id);
+      setTables((prev) => prev.filter((table) => table.id !== id));
+      setMessage("Table deleted successfully.");
+      setIsError(false);
+    } catch (error) {
+      setIsError(true);
+      setMessage(error.message || "Failed to delete table.");
+    }
 
     if (editingId === id) {
       resetForm();

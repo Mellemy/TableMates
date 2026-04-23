@@ -11,14 +11,14 @@ import ManageTables from "./pages/ManageTables";
 import "./index.css";
 
 function ProtectedAdminRoute({ children }) {
-  const isAdminLoggedIn = localStorage.getItem("isAdminLoggedIn") === "true";
-  return isAdminLoggedIn ? children : <Navigate to="/admin-login" replace />;
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  return user?.role === "admin" ? children : <Navigate to="/admin-login" replace />;
 }
 
 function ProtectedUserRoute({ children }) {
-  const isUserLoggedIn = localStorage.getItem("isUserLoggedIn") === "true";
+  const token = localStorage.getItem("token");
 
-  if (!isUserLoggedIn) {
+  if (!token) {
     sessionStorage.setItem("loginMessage", "Please login to continue");
     return <Navigate to="/login" replace />;
   }

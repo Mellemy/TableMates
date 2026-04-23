@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { signupUser } from "../services/authService";
 
 function Signup() {
   const [formData, setFormData] = useState({
@@ -20,7 +21,7 @@ function Signup() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.email || !formData.password || !formData.confirmPassword) {
@@ -41,12 +42,22 @@ function Signup() {
       return;
     }
 
-    setIsError(false);
-    setMessage("Sign up successful.");
+    try {
+      await signupUser({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    setTimeout(() => {
-      navigate("/login");
-    }, 900);
+      setIsError(false);
+      setMessage("Sign up successful.");
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 900);
+    } catch (error) {
+      setIsError(true);
+      setMessage(error.message || "Signup failed.");
+    }
   };
 
   return (

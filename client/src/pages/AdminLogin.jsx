@@ -1,42 +1,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { loginUser } from "../services/authService";
 
 function AdminLogin() {
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
   });
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
 
   const navigate = useNavigate();
-
-  const adminAccounts = [
-    {
-      username: "bellaadmin",
-      password: "admin123",
-      restaurantId: 1,
-      restaurantName: "Bella Italia",
-    },
-    {
-      username: "sushiadmin",
-      password: "admin123",
-      restaurantId: 2,
-      restaurantName: "Sushi House",
-    },
-    {
-      username: "burgeradmin",
-      password: "admin123",
-      restaurantId: 3,
-      restaurantName: "Burger Corner",
-    },
-    {
-      username: "goldenadmin",
-      password: "admin123",
-      restaurantId: 4,
-      restaurantName: "Golden Fork",
-    },
-  ];
 
   const handleChange = (e) => {
     setFormData({
@@ -45,25 +19,25 @@ function AdminLogin() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const matchedAdmin = adminAccounts.find(
-      (admin) =>
-        admin.username === formData.username &&
-        admin.password === formData.password
-    );
+    try {
+      const result = await loginUser(formData);
 
-    if (matchedAdmin) {
-      localStorage.setItem("isAdminLoggedIn", "true");
-      localStorage.setItem("adminData", JSON.stringify(matchedAdmin));
+      if (result.user.role !== "admin") {
+        throw new Error("This account is not an admin account.");
+      }
+
+      localStorage.setItem("token", result.token);
+      localStorage.setItem("user", JSON.stringify(result.user));
 
       setIsError(false);
       setMessage("Login successful.");
       navigate("/admin");
-    } else {
+    } catch (error) {
       setIsError(true);
-      setMessage("Invalid admin credentials.");
+      setMessage(error.message || "Invalid admin credentials.");
     }
   };
 
@@ -77,13 +51,13 @@ function AdminLogin() {
 
         <form onSubmit={handleSubmit} className="wire-auth-form">
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="email">Admin Email</label>
             <input
-              id="username"
-              type="text"
-              name="username"
-              placeholder="Enter admin username"
-              value={formData.username}
+              id="email"
+              type="email"
+              name="email"
+              placeholder="Enter admin email"
+              value={formData.email}
               onChange={handleChange}
               required
             />
@@ -115,7 +89,10 @@ function AdminLogin() {
 
         <div className="wire-auth-footer">
           <span>Demo accounts:</span>
-          <span className="wire-auth-link">bellaadmin / admin123</span>
+          <span className="wire-auth-link">bellaadmin@tablemates.com / admin123</span>
+          <span className="wire-auth-link">sushiadmin@tablemates.com / admin123</span>
+          <span className="wire-auth-link">burgeradmin@tablemates.com / admin123</span>
+          <span className="wire-auth-link">goldenadmin@tablemates.com / admin123</span>
         </div>
       </div>
     </div>

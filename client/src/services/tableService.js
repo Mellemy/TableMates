@@ -1,10 +1,21 @@
-export const getRestaurantTables = async (restaurantId) => {
-  const response = await fetch(`http://localhost:5000/api/restaurants/${restaurantId}/tables`);
-  const result = await response.json();
+import { apiFetch } from "./api";
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch tables");
-  }
+export const getRestaurantTables = (restaurantId) =>
+  apiFetch(`/api/restaurants/${restaurantId}/tables`);
 
-  return result;
-};
+export const createTable = (data) =>
+  apiFetch("/api/admin/tables", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateTable = (id, data) =>
+  apiFetch(`/api/admin/tables/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const deleteTable = (id) =>
+  apiFetch(`/api/admin/tables/${id}`, {
+    method: "DELETE",
+  });

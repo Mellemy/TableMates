@@ -1,63 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getRestaurants } from "../services/restaurantService";
 
 function Home() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [restaurants, setRestaurants] = useState([]);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const restaurants = [
-    {
-      id: 1,
-      name: "Bella Italia",
-      location: "City Center",
-      rating: "4.8",
-      openingTime: "10:00 AM - 11:00 PM",
-      cuisine: "Italian",
-      image:
-        "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      id: 2,
-      name: "Sushi House",
-      location: "Main Street",
-      rating: "4.7",
-      openingTime: "11:00 AM - 10:30 PM",
-      cuisine: "Japanese",
-      image:
-        "https://images.unsplash.com/photo-1579027989536-b7b1f875659b?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      id: 3,
-      name: "Burger Corner",
-      location: "Downtown",
-      rating: "4.5",
-      openingTime: "09:00 AM - 12:00 AM",
-      cuisine: "American",
-      image:
-        "https://images.unsplash.com/photo-1561758033-d89a9ad46330?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      id: 4,
-      name: "Golden Fork",
-      location: "Riverside Avenue",
-      rating: "4.9",
-      openingTime: "12:00 PM - 11:30 PM",
-      cuisine: "Fine Dining",
-      image:
-        "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=1200&q=80",
-    },
-  ];
+  useEffect(() => {
+    const loadRestaurants = async () => {
+      try {
+        const data = await getRestaurants();
+        setRestaurants(data);
+      } catch (fetchError) {
+        setError(fetchError.message || "Failed to load restaurants.");
+      }
+    };
 
-  const filteredRestaurants = useMemo(() => {
-    return restaurants.filter((restaurant) =>
-      `${restaurant.name} ${restaurant.location} ${restaurant.cuisine}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-    );
-  }, [searchTerm]);
+    loadRestaurants();
+  }, []);
+
+  const filteredRestaurants = restaurants.filter((restaurant) =>
+    `${restaurant.name} ${restaurant.location} ${restaurant.cuisine}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
 
   const handleViewTables = (restaurant) => {
-    const isLoggedIn = localStorage.getItem("isUserLoggedIn");
+    const isLoggedIn = localStorage.getItem("token");
 
     if (!isLoggedIn) {
       sessionStorage.setItem(
@@ -166,6 +137,8 @@ function Home() {
             <p>Select a restaurant and continue to table reservation.</p>
           </div>
 
+          {error && <div className="status-message error">{error}</div>}
+
           <div className="premium-restaurant-list">
             {filteredRestaurants.length === 0 ? (
               <div className="premium-empty-state">
@@ -177,7 +150,7 @@ function Home() {
                 <div className="premium-restaurant-card" key={restaurant.id}>
                   <div className="premium-restaurant-image-wrap">
                     <img
-                      src={restaurant.image}
+                      src={restaurant.imageUrl}
                       alt={restaurant.name}
                       className="premium-restaurant-image"
                     />

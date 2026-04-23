@@ -6,6 +6,7 @@ import { getRestaurantTables } from "../services/tableService";
 function Reservation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const selectedRestaurantId = location.state?.restaurantId || "";
   const selectedRestaurantName = location.state?.restaurantName || "";
@@ -95,8 +96,8 @@ function Reservation() {
 
       await createReservation({
         ...formData,
-        restaurantId: Number(formData.restaurantId),
-        tableId: Number(formData.tableId),
+        restaurantId: formData.restaurantId,
+        tableId: formData.tableId,
         guests: Number(formData.guests),
       });
 
@@ -104,8 +105,9 @@ function Reservation() {
         state: {
           reservation: {
             ...formData,
-            restaurantId: Number(formData.restaurantId),
-            tableId: Number(formData.tableId),
+            restaurantId: formData.restaurantId,
+            tableId: formData.tableId,
+            email: user.email,
             guests: Number(formData.guests),
           },
         },
@@ -137,7 +139,7 @@ function Reservation() {
               type="text"
               name="restaurantName"
               value={formData.restaurantName}
-              onChange={handleChange}
+              readOnly
               required
             />
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { loginUser } from "../services/authService";
 
 function Login() {
   const [formData, setFormData] = useState({
@@ -29,7 +30,7 @@ function Login() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
@@ -38,15 +39,26 @@ function Login() {
       return;
     }
 
-    localStorage.setItem("isUserLoggedIn", "true");
-    localStorage.setItem("userEmail", formData.email);
+    try {
+      const result = await loginUser(formData);
 
-    setIsError(false);
-    setMessage("Login successful!");
+      if (result.user.role === "admin") {
+        throw new Error("Use the admin login page for admin accounts.");
+      }
 
-    setTimeout(() => {
-      navigate("/user-home");
-    }, 800);
+      localStorage.setItem("token", result.token);
+      localStorage.setItem("user", JSON.stringify(result.user));
+
+      setIsError(false);
+      setMessage("Login successful!");
+
+      setTimeout(() => {
+        navigate("/user-home");
+      }, 800);
+    } catch (error) {
+      setIsError(true);
+      setMessage(error.message || "Login failed.");
+    }
   };
 
   return (
